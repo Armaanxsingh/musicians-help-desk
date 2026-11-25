@@ -424,14 +424,14 @@ document.getElementById('mUp').onclick=function(){setBpm(bpm+1);};
 setBpm(90);
 
 /* tuner */
-var tStream=null,tTimer=null,tBtn=document.getElementById('tGo'),tNote=document.getElementById('tNote'),tHint=document.getElementById('tHint'),needle=document.getElementById('needle');
-function detect(buf,sr){var n=buf.length,i,rms=0;for(i=0;i<n;i++)rms+=buf[i]*buf[i];if(Math.sqrt(rms/n)<.01)return 0;
+var lastRms=0,tStream=null,tTimer=null,tBtn=document.getElementById('tGo'),tNote=document.getElementById('tNote'),tHint=document.getElementById('tHint'),needle=document.getElementById('needle');
+function detect(buf,sr){var n=buf.length,i,rms=0;for(i=0;i<n;i++)rms+=buf[i]*buf[i];lastRms=Math.sqrt(rms/n);if(lastRms<.004)return 0;
  var lo=Math.floor(sr/500),hi=Math.floor(sr/60),c=[],mx=0,l,k;
  for(l=lo;l<=hi;l++){var s=0;for(k=0;k<n-l;k++)s+=buf[k]*buf[k+l];c[l]=s;if(s>mx)mx=s;}
  for(l=lo+1;l<hi;l++)if(c[l]>c[l-1]&&c[l]>=c[l+1]&&c[l]>.85*mx){var a=c[l-1],b=c[l],d=c[l+1],sh=(a-d)/(2*(a-2*b+d)||1);return sr/(l+sh);}
  return 0;}
 function stopT(){clearInterval(tTimer);tTimer=null;if(tStream){tStream.getTracks().forEach(function(t){t.stop();});tStream=null;}tBtn.textContent='Start tuner';}
-function showT(f){if(!f){tHint.textContent='Listening...';return;}
+function showT(f){if(!f){tHint.textContent='Listening... mic level '+Math.round(Math.min(1,lastRms*20)*100)+'%. Play one string close to the phone.';return;}
  var m=69+12*Math.log(f/440)/Math.LN2,n=Math.round(m),ct=Math.round((m-n)*100);
  tNote.textContent=NOTE[((n%12)+12)%12]+(Math.floor(n/12)-1);
  needle.style.left=(50+Math.max(-50,Math.min(50,ct)))+'%';needle.className=Math.abs(ct)<=5?'ok':'';
@@ -440,11 +440,11 @@ tBtn.onclick=function(){
  if(tTimer){stopT();return;}
  var c=A();
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){tHint.textContent='This browser cannot use the microphone. Tune by ear below.';return;}
- navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}).then(function(st){
-  tStream=st;var an=c.createAnalyser();an.fftSize=4096;c.createMediaStreamSource(st).connect(an);var buf=new Float32Array(4096);
+ navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}}).then(function(st){
+  tStream=st;var an=c.createAnalyser();an.fftSize=4096;var src=c.createMediaStreamSource(st),mute=c.createGain();mute.gain.value=0;src.connect(an);an.connect(mute);mute.connect(c.destination);var buf=new Float32Array(4096);
   tBtn.textContent='Stop tuner';tHint.textContent='Listening...';
   tTimer=setInterval(function(){an.getFloatTimeDomainData(buf);showT(detect(buf,c.sampleRate));},100);
- }).catch(function(){tHint.textContent='Microphone blocked. Allow access to use the tuner, or tune by ear below.';});};
+ }).catch(function(e){tHint.textContent=(e&&e.name==='NotFoundError')?'No microphone found on this device.':'Microphone blocked. Open Android Settings > Apps > Chrome > Permissions > Microphone and choose Allow, then try again. You can still tune by ear below.';});};
 [['E2',40],['A2',45],['D3',50],['G3',55],['B3',59],['E4',64]].forEach(function(r){var b=document.createElement('button');b.className='btn';b.textContent=r[0];
  b.onclick=function(){pluck(r[1],A().currentTime,.5);};document.getElementById('refs').appendChild(b);});
 tabs.forEach(function(t){t.addEventListener('click',function(){if(t.dataset.t!=='tuner')stopT();});});
