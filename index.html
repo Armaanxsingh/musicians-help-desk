@@ -178,7 +178,7 @@ function flash(el,ms){el.classList.add('on');setTimeout(function(){el.classList.
 var tabs=document.querySelectorAll('.tabs button');
 tabs.forEach(function(t){t.addEventListener('click',function(){
   tabs.forEach(function(x){x.setAttribute('aria-selected',x===t);});
-  ['piano','drums','guitar'].forEach(function(id){document.getElementById(id).hidden=(id!==t.dataset.t);});
+  ['piano','drums','guitar','tuner','metro'].forEach(function(id){document.getElementById(id).hidden=(id!==t.dataset.t);});
 });});
 
 /* piano */
